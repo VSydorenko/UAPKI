@@ -1,45 +1,46 @@
 # UAPKI
 
-The UAPKI is crypto library for using in PKI with support of Ukrainian and internationlal cryptographic standards.
-Fork of [Cryptonite](https://github.com/privat-it/cryptonite).
+UAPKI - це криптографічна бібліотека для використання в ІВК з підтримкою українських та міжнародних криптографічних стандартів.
 
-[Expert conclusion on the results of the Ukrainian state expertise in the field of cryptographic protection of information No 04/05/02-2096 from 21.07.2021](https://data.gov.ua/dataset/7b0d45fe-75eb-4d14-9792-59e440305678).
+Даний форк підтримує динамічне підвантаження ключів після ініціалізації бібліотеки на відміну від оригінального [Cryptonite](https://github.com/privat-it/cryptonite), а також механізмів [IIT](https://iit.com.ua/) та [jkurwa](https://github.com/dstucrypt/jkurwa)
 
-## Project structure
+[Експертний висновок щодо результатів державної експертизи в галузі криптографічного захисту інформації №04/05/02-2096 від 21.07.2021](https://data.gov.ua/dataset/7b0d45fe-75eb-4d14-9792-59e440305678).
 
-+ library. Directory contains c/cpp libraries and applications of The UAPKI Project
-  + uapkic. Library of cryptoprimitives (symmetric and strem ciphers, hashes, MACs, signatures etc.)
-  + uapkif. Library provides ASN.1 encoder/decoder, implements parsing and constructing most of ASN.1 encoded cryptographic data.
-  + cm-*. Libraries that provides work with secure storages of private keys. This is private key isolation level.
-  + uapki. Main library with JSON that implements interface for message signing and verification, private key and CSR generation, crtificate verification and other.
-  + test. Application for testing library and use as examples of library calls.
-  + hostapp. Native messaging host for communicate library with web pages in modern browsers.
-+ integration. Directory contains components for embedding library into applications developed with other programming languages.
-+ doc. Directory contains manual for developers.
+## Структура проекту
 
-## Supported cryptographic algorithms
++ library. Каталог містить бібліотеки та програми проекту UAPKI на мовах C/C++
+  + uapkic. Бібліотека криптопримітивів (симетричні та потокові шифри, хеш-функції, MAC, підписи і т. д.).
+  + uapkif. Бібліотека надає ASN.1 енкодер/декодер, реалізує розбір та конструювання більшості ASN.1 закодованих криптографічних даних.
+  + cm-*. Бібліотеки, що надають роботу із захищеними сховищами приватних ключів. Це рівень ізоляції приватних ключів.
+  + uapki. Основна бібліотека із JSON, що реалізує інтерфейс для підпису та верифікації повідомлень, генерації приватних ключів та CSR, верифікації сертифікатів та іншого.
+  + test. Додаток для тестування бібліотеки та використання його як прикладів викликів бібліотеки.
+  + hostapp. Хост-додаток для нативного обміну повідомленнями з бібліотекою на веб-сторінках у сучасних браузерах.
++ integration. Каталог містить компоненти для вбудовування бібліотеки в застосунки, розроблені іншими мовами програмування.
++ doc. Каталог містить посібник для розробників.
 
-+ Digital signatures: DSTU 4145-2002, ECDSA, RSA, EC-GDSA, EC-RDSA, SM2-DSA
-+ Hashes: DSTU 7564:2014 (Kupyna), GOST 34.311-95, MD5, SHA1, SHA2, SHA3, WHIRLPOOL, RIPEMD, GOST R 34.11-2012, SM3
-+ HMACs based at all hashes
-+ Symmetric ciphers: DSTU 7624:2014 (Kalyna), DSTU 8845:2019 (Strumok), GOST 28147-89 (Magma), AES, DES, TDES
-+ Asymmetric ciphers: RSA
-+ Key agreement: ECDH
+## Криптографічні алгоритми, що підтримуються
 
-## Supported palforms
++ Цифрові підписи: ДСТУ 4145-2002, ECDSA, RSA, EC-GDSA, EC-RDSA, SM2-DSA
++ Хеш-функції: ДСТУ 7564:2014 (Купина), ГОСТ 34.311-95, MD5, SHA1, SHA2, SHA3, WHIRLPOOL, RIPEMD, ГОСТ R 34.11-2012, SM3
++ HMACs на основі всіх хешів
++ Симетричні шифри: ДСТУ 7624:2014 (Калина), ДСТУ 8845:2019 (Струмок), ГОСТ 28147-89 (Магма), AES, DES, TDES
++ Асиметричні шифри: RSA
++ Узгодження ключів: ECDH
 
-+ Microsoft Windows x86 and x86-64
+## Платформи, що підтримуються
+
++ Microsoft Windows x86 та x86-64
 + Linux x86-64, armv7 (32 bit), armv8 (64 bit)
 + FreeBSD x86-64, armv8
 + Apple macOS x86-64, armv8 (Apple M1)
 + Apple iOS, iPadOS armv8
 + Google Android armv8, x86-64
 
-## Telegram group for developers
+## Група Telegram для розробників
 https://t.me/joinchat/UTjOABGHYxEqUYDp
 
-# License
+# Ліцензія
 See [LICENSE](LICENSE) file.
 
-# Authors
+# Автори
 See [AUTHORS](AUTHORS) file.
