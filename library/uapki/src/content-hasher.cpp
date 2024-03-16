@@ -32,6 +32,7 @@
 #include "macros-internal.h"
 #include "uapkic-errors.h"
 #include "uapki-errors.h"
+#include <cstring>
 
 
 #define FILE_BLOCK_SIZE (10 * 1024 * 1024)
@@ -52,6 +53,7 @@ namespace UapkiNS {
 ContentHasher::ContentHasher (void)
     : m_SourceType(SourceType::UNDEFINED)
     , m_HashAlgo(HASH_ALG_UNDEFINED)
+    , m_Bytes(nullptr)
     , m_AutoReleaseBytes(false)
     , m_MemoryPtr(nullptr)
     , m_MemorySize(0)
