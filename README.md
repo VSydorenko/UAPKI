@@ -37,10 +37,13 @@ UAPKI - це криптографічна бібліотека для викор
 + Google Android armv8, x86-64
 
 ## Група Telegram для розробників
-https://t.me/joinchat/UTjOABGHYxEqUYDp
 
-# Ліцензія
+[Telegram Group for Developers](https://t.me/joinchat/UTjOABGHYxEqUYDp)
+
+## Ліцензія
+
 See [LICENSE](LICENSE) file.
 
-# Автори
+## Автори
+
 See [AUTHORS](AUTHORS) file.
