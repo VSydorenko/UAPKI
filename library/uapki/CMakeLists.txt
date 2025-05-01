@@ -75,6 +75,7 @@ target_include_directories(uapki ${UAPKI_INTERNAL_INCLUDES_MODE}
         ${PATH_PRJ}
         ${PATH_PRJ}/src
         ${PATH_PRJ}/src/api
+        ${CURL_INCLUDE_DIR}
         PUBLIC
         ${PATH_COMMON_LOADERS}
         ${PATH_PRJ}/include
@@ -90,10 +91,12 @@ target_link_libraries(uapki ${UAPKI_INTERNAL_INCLUDES_MODE} uapkic uapkif)
 if (${UNIX})
     target_link_libraries(uapki PRIVATE dl curl)
 endif ()
+if (${WIN32})
+    target_link_libraries(uapki PRIVATE ${CURL_LIBRARY})
+endif ()
 if (${APPLE})
     target_link_libraries(uapki PRIVATE iconv)
 endif ()
-
 
 if (NOT UAPKI_DISABLE_COPY)
     add_custom_command(TARGET uapki POST_BUILD
