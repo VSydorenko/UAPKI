@@ -86,40 +86,51 @@ if ($DynamicCmPkcs12) {
     Write-Host "Building CM-PKCS12 as a dynamic library" -ForegroundColor Green
 }
 
-# Добавляем параметр выходной директории и указываем не копировать файлы в build/out
-# Единственная выходная директория - library/out
+# Добавляем параметр выходной директории
 $cmakeParams += "-DOUT_DIR=win32"
 $cmakeParams += "-DUAPKI_DISABLE_COPY=OFF" # Разрешаем копирование в выходную директорию
 
-# Добавляем параметры для подключения библиотеки curl
-# Пути к заголовочным файлам и библиотекам curl
-$CurlIncludeDir = "$LibraryDir\common\curl\include"
+# Путь к локальной библиотеке curl (встроенной в проект)
+$localCurlIncludeDir = "$LibraryDir\common\curl\include"
+$localCurlLibPath = "$LibraryDir\common\curl\builds\windows_x86-64\libcurl.lib"
 
-# Определяем путь к библиотеке curl в зависимости от архитектуры
-if ($Arch -eq "x64") {
-    $CurlLibPath = "$LibraryDir\common\curl\builds\windows_x86-64\libcurl.lib"
-} else {
-    $CurlLibPath = "$LibraryDir\common\curl\builds\windows_x86\libcurl.lib"
+# Проверяем существование локальной библиотеки curl
+if ((Test-Path -Path $localCurlIncludeDir) -and (Test-Path -Path $localCurlLibPath)) {
+    Write-Host "Using local curl from project:" -ForegroundColor Green
+    Write-Host "  Include directory: $localCurlIncludeDir" -ForegroundColor Green
+    Write-Host "  Library path: $localCurlLibPath" -ForegroundColor Green
+    
+    # Добавляем параметры для локального curl
+    $cmakeParams += "-DCURL_INCLUDE_DIR=$localCurlIncludeDir"
+    $cmakeParams += "-DCURL_LIBRARY=$localCurlLibPath"
+}
+else {
+    # Путь к системной библиотеке curl (если локальной нет)
+    $systemCurlBasePath = "C:/Program Files/curl-8.13.0_1-win64-mingw"
+    $systemCurlIncludeDir = "$systemCurlBasePath/include"
+    $systemCurlLibPath = "$systemCurlBasePath/lib/libcurl.a"
+
+    # Проверяем существование системной библиотеки curl
+    if (Test-Path -Path $systemCurlIncludeDir) {
+        Write-Host "Using system curl:" -ForegroundColor Green
+        Write-Host "  Include directory: $systemCurlIncludeDir" -ForegroundColor Green
+        Write-Host "  Library path: $systemCurlLibPath" -ForegroundColor Green
+        
+        # Добавляем параметры для системного curl
+        $cmakeParams += "-DCURL_INCLUDE_DIR=$systemCurlIncludeDir"
+        $cmakeParams += "-DCURL_LIBRARY=$systemCurlLibPath"
+    } else {
+        Write-Host "Neither local nor system curl found, project may not compile correctly" -ForegroundColor Yellow
+    }
 }
 
-# Добавляем параметры для curl
-Write-Host "Using curl include directory: $CurlIncludeDir" -ForegroundColor Green
-Write-Host "Using curl library: $CurlLibPath" -ForegroundColor Green
+# Добавляем дополнительные флаги компилятора для статической линковки с curl
+$cmakeParams += "-DCMAKE_CXX_FLAGS=""-DCURL_STATICLIB"""
+$cmakeParams += "-DCMAKE_C_FLAGS=""-DCURL_STATICLIB"""
 
-$cmakeParams += "-DCURL_INCLUDE_DIR=$CurlIncludeDir"
-$cmakeParams += "-DCURL_LIBRARY=$CurlLibPath"
-$cmakeParams += "-DUSE_CURL_ON_WINDOWS=ON"
-
-# Добавляем явную линковку с Windows-библиотеками, необходимыми для libcurl
+# Добавляем необходимые системные библиотеки Windows для работы с curl
 $cmakeParams += "-DCMAKE_EXE_LINKER_FLAGS=""/VERBOSE:LIB ws2_32.lib wldap32.lib crypt32.lib normaliz.lib advapi32.lib"""
 $cmakeParams += "-DCMAKE_SHARED_LINKER_FLAGS=""/VERBOSE:LIB ws2_32.lib wldap32.lib crypt32.lib normaliz.lib advapi32.lib"""
-
-# Добавляем флаги компилятора для всех исходных файлов
-# Важно: добавляем путь к заголовочным файлам curl в параметры компилятора,
-# но используем формат без пробелов, чтобы CMake правильно обработал аргументы
-$curlIncludePath = $CurlIncludeDir.Replace('\', '/')
-$cmakeParams += "-DCMAKE_CXX_FLAGS=""-DCURL_STATICLIB -I$curlIncludePath"""
-$cmakeParams += "-DCMAKE_C_FLAGS=""-DCURL_STATICLIB -I$curlIncludePath"""
 
 # Генерация проекта
 Write-Host "Generating project for $Arch in $BuildDir..." -ForegroundColor Cyan
