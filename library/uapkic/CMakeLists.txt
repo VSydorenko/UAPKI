@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.05)
+cmake_minimum_required(VERSION 3.10)
 
 project(uapkic LANGUAGES C)
 set(UAPKIC_VERSION 2.0.1)

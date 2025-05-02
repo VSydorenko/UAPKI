@@ -1,5 +1,5 @@
 # Скрипт для сборки проекта UAPKI
-# powershell -ExecutionPolicy Bypass -File build_uapki.ps1 [-WithTests]
+# powershell -ExecutionPolicy Bypass -File build_uapki.ps1
 #
 # Обычная сборка для x64 (версия 64-бит)
 #./build_uapki.ps1
@@ -14,7 +14,7 @@
 #./build_uapki.ps1 -DynamicCmPkcs12
 #
 # Добавление тестов к любой из конфигураций
-#./build_uapki.ps1 -StaticUapki -DynamicCmPkcs12 -WithTests
+#./build_uapki.ps1 -StaticUapki -DynamicCmPkcs12
 
 param(
     [string]$Arch = "x64",    # Архитектура сборки: x64 (по умолчанию) или x86
@@ -62,15 +62,6 @@ if (Test-Path -Path $OutDir) {
 
 # Определение параметров для CMake
 $cmakeParams = @()
-
-# Добавляем параметр для тестов
-if ($WithTests) {
-    $cmakeParams += "-DBUILD_TESTS=ON"
-    Write-Host "Test suite will be built" -ForegroundColor Green
-} else {
-    $cmakeParams += "-DBUILD_TESTS=OFF"
-    Write-Host "Test suite disabled" -ForegroundColor Yellow
-}
 
 # Добавляем параметры для статической библиотеки UAPKI
 if ($StaticUapki) {

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.05)
+cmake_minimum_required(VERSION 3.10)
 
 project(cm-pkcs12 LANGUAGES C CXX)
 set(CM_PKCS12_VERSION 1.0.13)
