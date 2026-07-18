@@ -36,12 +36,27 @@ extern "C" {
 
 #if defined(_WIN32) || defined(__WINDOWS__)
 #include <windows.h>
+#include <stdlib.h>
 typedef HMODULE HANDLE_DLIB;
 #define LIBNAME_PREFIX ""
 #define LIBNAME_EXT "dll"
 #define DL_LOAD_LIBRARY(fn) LoadLibraryA(fn)
 #define DL_GET_PROC_ADDRESS(h, fname) GetProcAddress((HANDLE_DLIB)h, fname)
 #define DL_FREE_LIBRARY(h) FreeLibrary((HANDLE_DLIB)h);
+
+/* Load a library from a UTF-8 path: converts to UTF-16 and uses LoadLibraryW,
+ * so paths with non-ASCII (e.g. Cyrillic) characters are handled correctly
+ * regardless of the active ANSI code page. */
+static HANDLE_DLIB dl_load_library_utf8(const char* fn_utf8) {
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, fn_utf8, -1, NULL, 0);
+    if (wlen <= 0) return (HANDLE_DLIB)0;
+    wchar_t* wbuf = (wchar_t*)malloc((size_t)wlen * sizeof(wchar_t));
+    if (!wbuf) return (HANDLE_DLIB)0;
+    MultiByteToWideChar(CP_UTF8, 0, fn_utf8, -1, wbuf, wlen);
+    HANDLE_DLIB h = LoadLibraryW(wbuf);
+    free(wbuf);
+    return h;
+}
 
 #elif defined(__linux__) || defined(__APPLE__) || defined(__unix__)
 #include <dlfcn.h>
@@ -53,6 +68,7 @@ typedef void* HANDLE_DLIB;
 #define LIBNAME_EXT "so"
 #endif
 #define DL_LOAD_LIBRARY(fn) dlopen(fn, RTLD_NOW)
+#define dl_load_library_utf8(fn) DL_LOAD_LIBRARY(fn)
 #define DL_GET_PROC_ADDRESS(h, fname) dlsym((HANDLE_DLIB)h, fname)
 #define DL_FREE_LIBRARY(h) dlclose((HANDLE_DLIB)h);
 
