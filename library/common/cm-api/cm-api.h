@@ -58,6 +58,27 @@ typedef struct CM_BYTEARRAY {
     size_t      len;
 } CM_BYTEARRAY;
 
+/*
+ * Provider lifecycle contract.
+ *
+ * A provider library is loaded once per process, but the number of INDEPENDENT
+ * consumers that initialize it is not controlled by the provider: several modules
+ * in one process may each link UAPKI statically and each call provider_init().
+ *
+ * Therefore an implementation of cm_provider_init_f MUST:
+ *   1) be idempotent - when the provider is already initialized it returns RET_OK,
+ *      NOT RET_CM_ALREADY_INITIALIZED. The configuration of the first successful
+ *      initialization wins; per-session parameters of provider_open() override the
+ *      defaults anyway;
+ *   2) keep a reference count of init/deinit calls.
+ *
+ * An implementation of cm_provider_deinit_f MUST release the provider only when the
+ * reference count reaches zero, and return RET_OK while it is still above zero.
+ * It returns RET_CM_NOT_INITIALIZED when the provider was never initialized.
+ *
+ * RET_CM_ALREADY_INITIALIZED is kept in cm-errors.h for compatibility with
+ * third-party providers that predate this contract.
+ */
 typedef CM_ERROR (*cm_provider_info_f) (CM_JSON_PCHAR* providerInfo);
 typedef CM_ERROR (*cm_provider_init_f) (CM_JSON_PCHAR providerParams);
 typedef CM_ERROR (*cm_provider_deinit_f) (void);

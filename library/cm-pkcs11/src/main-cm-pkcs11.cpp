@@ -43,6 +43,9 @@ DEBUG_OUTPUT_FUNC
 
 
 static CmCryptoki* cm_cryptoki = nullptr;
+//  See the comment in cm-pkcs12/src/main-cm-pkcs12.cpp: process-wide provider
+//  instance shared by several independent consumers.
+static size_t cm_cryptoki_refcnt = 0;
 
 
 #ifdef __cplusplus
@@ -79,10 +82,15 @@ CM_EXPORT CM_ERROR provider_init (
                 delete cm_cryptoki;
                 cm_cryptoki = nullptr;
             }
+            else {
+                cm_cryptoki_refcnt = 1;
+            }
         }
     }
     else {
-        cm_err = RET_CM_ALREADY_INITIALIZED;
+        //  Idempotent, see cm-pkcs12.
+        cm_cryptoki_refcnt++;
+        cm_err = RET_OK;
     }
     return cm_err;
 }
@@ -90,15 +98,14 @@ CM_EXPORT CM_ERROR provider_init (
 CM_EXPORT CM_ERROR provider_deinit (void)
 {
     DEBUG_OUTPUT("provider_deinit()");
-    CM_ERROR cm_err = RET_OK;
-    if (cm_cryptoki) {
+    if (!cm_cryptoki) return RET_CM_NOT_INITIALIZED;
+
+    if (cm_cryptoki_refcnt > 0) cm_cryptoki_refcnt--;
+    if (cm_cryptoki_refcnt == 0) {
         delete cm_cryptoki;
         cm_cryptoki = nullptr;
     }
-    else {
-        cm_err = RET_CM_NOT_INITIALIZED;
-    }
-    return cm_err;
+    return RET_OK;
 }
 
 CM_EXPORT CM_ERROR provider_list_storages (
