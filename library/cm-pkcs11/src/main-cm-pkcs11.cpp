@@ -26,6 +26,7 @@
  */
 
 #include <stdio.h>
+#include <string>
 #include "byte-array.h"
 #include "cm-api.h"
 #include "cm-cryptoki.h"
@@ -46,6 +47,15 @@ static CmCryptoki* cm_cryptoki = nullptr;
 //  See the comment in cm-pkcs12/src/main-cm-pkcs12.cpp: process-wide provider
 //  instance shared by several independent consumers.
 static size_t cm_cryptoki_refcnt = 0;
+//  Configuration text of the first successful initialization. A repeated
+//  provider_init() is idempotent only for the SAME configuration; a different
+//  one is a different request and is rejected without changing the state.
+static std::string cm_cryptoki_initparams;
+
+static std::string params_text (CM_JSON_PCHAR providerParams)
+{
+    return providerParams ? std::string((const char*)providerParams) : std::string();
+}
 
 
 #ifdef __cplusplus
@@ -84,13 +94,19 @@ CM_EXPORT CM_ERROR provider_init (
             }
             else {
                 cm_cryptoki_refcnt = 1;
+                cm_cryptoki_initparams = params_text(providerParams);
             }
         }
     }
-    else {
-        //  Idempotent, see cm-pkcs12.
+    else if (params_text(providerParams) == cm_cryptoki_initparams) {
+        //  Idempotent for the SAME configuration: the post-condition already holds.
         cm_cryptoki_refcnt++;
         cm_err = RET_OK;
+    }
+    else {
+        //  A different configuration is a different request. Reject it loudly and
+        //  leave both the instance and the reference count untouched.
+        cm_err = RET_CM_ALREADY_INITIALIZED;
     }
     return cm_err;
 }
@@ -104,6 +120,7 @@ CM_EXPORT CM_ERROR provider_deinit (void)
     if (cm_cryptoki_refcnt == 0) {
         delete cm_cryptoki;
         cm_cryptoki = nullptr;
+        cm_cryptoki_initparams.clear();
     }
     return RET_OK;
 }

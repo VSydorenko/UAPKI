@@ -66,18 +66,22 @@ typedef struct CM_BYTEARRAY {
  * in one process may each link UAPKI statically and each call provider_init().
  *
  * Therefore an implementation of cm_provider_init_f MUST:
- *   1) be idempotent - when the provider is already initialized it returns RET_OK,
- *      NOT RET_CM_ALREADY_INITIALIZED. The configuration of the first successful
- *      initialization wins; per-session parameters of provider_open() override the
- *      defaults anyway;
- *   2) keep a reference count of init/deinit calls.
+ *   1) be idempotent for the SAME configuration - when the provider is already
+ *      initialized with an identical providerParams text (NULL and "" are equal)
+ *      it returns RET_OK and increments the reference count;
+ *   2) reject a DIFFERENT configuration with RET_CM_ALREADY_INITIALIZED, leaving
+ *      the instance and the reference count untouched. A provider configuration
+ *      may select what the provider loads (e.g. the list of PKCS#11 modules in
+ *      cm-pkcs11), so silently keeping the first one would hand a consumer
+ *      something it did not ask for;
+ *   3) keep a reference count of init/deinit calls.
  *
  * An implementation of cm_provider_deinit_f MUST release the provider only when the
  * reference count reaches zero, and return RET_OK while it is still above zero.
  * It returns RET_CM_NOT_INITIALIZED when the provider was never initialized.
  *
- * RET_CM_ALREADY_INITIALIZED is kept in cm-errors.h for compatibility with
- * third-party providers that predate this contract.
+ * RET_CM_ALREADY_INITIALIZED therefore keeps a precise meaning: "already
+ * initialized with a different configuration".
  */
 typedef CM_ERROR (*cm_provider_info_f) (CM_JSON_PCHAR* providerInfo);
 typedef CM_ERROR (*cm_provider_init_f) (CM_JSON_PCHAR providerParams);

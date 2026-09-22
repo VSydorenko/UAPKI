@@ -30,6 +30,7 @@
 #endif
 #include <stdio.h>
 #include <string.h>
+#include <string>
 #include "cm-api.h"
 #include "cm-errors.h"
 #include "cm-export.h"
@@ -71,6 +72,15 @@ static CmPkcs12* cm_pkcs12 = nullptr;
 //  provider_init() used to fail with RET_CM_ALREADY_INITIALIZED and the consumer
 //  ended up with no provider registered at all.
 static size_t cm_pkcs12_refcnt = 0;
+//  Configuration text of the first successful initialization. A repeated
+//  provider_init() is idempotent only for the SAME configuration; a different
+//  one is a different request and is rejected without changing the state.
+static std::string cm_pkcs12_initparams;
+
+static std::string params_text (CM_JSON_PCHAR providerParams)
+{
+    return providerParams ? std::string((const char*)providerParams) : std::string();
+}
 
 
 #ifdef __cplusplus
@@ -105,15 +115,19 @@ CM_EXPORT CM_ERROR provider_init (
             }
             else {
                 cm_pkcs12_refcnt = 1;
+                cm_pkcs12_initparams = params_text(providerParams);
             }
         }
     }
-    else {
-        //  Idempotent: the post-condition ("provider is initialized") already holds.
-        //  The configuration of the FIRST initialization wins; per-session parameters
-        //  of provider_open() override the defaults anyway.
+    else if (params_text(providerParams) == cm_pkcs12_initparams) {
+        //  Idempotent for the SAME configuration: the post-condition already holds.
         cm_pkcs12_refcnt++;
         cm_err = RET_OK;
+    }
+    else {
+        //  A different configuration is a different request. Reject it loudly and
+        //  leave both the instance and the reference count untouched.
+        cm_err = RET_CM_ALREADY_INITIALIZED;
     }
     return cm_err;
 }
@@ -127,6 +141,7 @@ CM_EXPORT CM_ERROR provider_deinit (void)
     if (cm_pkcs12_refcnt == 0) {
         delete cm_pkcs12;
         cm_pkcs12 = nullptr;
+        cm_pkcs12_initparams.clear();
     }
     return RET_OK;
 }
