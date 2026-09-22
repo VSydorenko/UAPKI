@@ -65,6 +65,12 @@ static const char* JSON_PROVIDER_INFO = "{"
 
 
 static CmPkcs12* cm_pkcs12 = nullptr;
+//  Reference counter for the process-wide provider instance. The provider DLL is
+//  loaded once per process but may be initialized by SEVERAL independent consumers
+//  (e.g. two modules that statically link UAPKI). Without counting, the second
+//  provider_init() used to fail with RET_CM_ALREADY_INITIALIZED and the consumer
+//  ended up with no provider registered at all.
+static size_t cm_pkcs12_refcnt = 0;
 
 
 #ifdef __cplusplus
@@ -97,10 +103,17 @@ CM_EXPORT CM_ERROR provider_init (
                 delete cm_pkcs12;
                 cm_pkcs12 = nullptr;
             }
+            else {
+                cm_pkcs12_refcnt = 1;
+            }
         }
     }
     else {
-        cm_err = RET_CM_ALREADY_INITIALIZED;
+        //  Idempotent: the post-condition ("provider is initialized") already holds.
+        //  The configuration of the FIRST initialization wins; per-session parameters
+        //  of provider_open() override the defaults anyway.
+        cm_pkcs12_refcnt++;
+        cm_err = RET_OK;
     }
     return cm_err;
 }
@@ -108,15 +121,14 @@ CM_EXPORT CM_ERROR provider_init (
 CM_EXPORT CM_ERROR provider_deinit (void)
 {
     DEBUG_OUTPUT("provider_deinit()");
-    CM_ERROR cm_err = RET_OK;
-    if (cm_pkcs12) {
+    if (!cm_pkcs12) return RET_CM_NOT_INITIALIZED;
+
+    if (cm_pkcs12_refcnt > 0) cm_pkcs12_refcnt--;
+    if (cm_pkcs12_refcnt == 0) {
         delete cm_pkcs12;
         cm_pkcs12 = nullptr;
     }
-    else {
-        cm_err = RET_CM_NOT_INITIALIZED;
-    }
-    return cm_err;
+    return RET_OK;
 }
 
 CM_EXPORT CM_ERROR provider_open (
