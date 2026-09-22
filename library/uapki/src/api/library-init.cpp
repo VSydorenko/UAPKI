@@ -40,6 +40,9 @@ using namespace std;
 using namespace UapkiNS;
 
 
+extern "C" const char* error_code_to_str (int errorCode);
+
+
 static int load_config (ParsonHelper& json, const string& configFile)
 {
     int ret = RET_OK;
@@ -60,11 +63,26 @@ cleanup:
     return ret;
 }   //  load_config
 
-static int setup_cm_providers (JSON_Object* joParams)
+static int setup_cm_providers (JSON_Object* joParams, JSON_Object* joResult)
 {
     const string s_dir = ParsonHelper::jsonObjectGetString(joParams, "dir");
     JSON_Array* ja_providers = json_object_get_array(joParams, "allowedProviders");
     const size_t cnt_providers = json_array_get_count(ja_providers);
+
+    //  Loading a provider is TOLERANT by design: allowedProviders may legitimately
+    //  list a provider that is absent on this machine. What used to be missing is
+    //  the report - the outcome was discarded and INIT claimed plain success.
+    JSON_Object* jo_report = nullptr;
+    JSON_Array* ja_failed = nullptr;
+    size_t cnt_loaded = 0;
+    if (json_object_set_value(joResult, "cmProviders", json_value_init_object()) != JSONSuccess) {
+        return RET_UAPKI_JSON_FAILURE;
+    }
+    jo_report = json_object_get_object(joResult, "cmProviders");
+    if (json_object_set_value(jo_report, "failed", json_value_init_array()) != JSONSuccess) {
+        return RET_UAPKI_JSON_FAILURE;
+    }
+    ja_failed = json_object_get_array(jo_report, "failed");
 
     for (size_t i = 0; i < cnt_providers; i++) {
         JSON_Object* jo_provider = json_array_get_object(ja_providers, i);
@@ -79,8 +97,23 @@ static int setup_cm_providers (JSON_Object* joParams)
             json.serialize(s_config);
         }
 
-        (void)CmProviders::loadProvider(s_dir, s_lib, s_config);
+        const int ret_load = CmProviders::loadProvider(s_dir, s_lib, s_config);
+        if (ret_load == RET_OK) {
+            cnt_loaded++;
+        }
+        else {
+            if (json_array_append_value(ja_failed, json_value_init_object()) != JSONSuccess) {
+                return RET_UAPKI_JSON_FAILURE;
+            }
+            JSON_Object* jo_fail = json_array_get_object(ja_failed, json_array_get_count(ja_failed) - 1);
+            (void)json_object_set_string(jo_fail, "lib", s_lib.c_str());
+            (void)ParsonHelper::jsonObjectSetInt32(jo_fail, "errorCode", ret_load);
+            (void)json_object_set_string(jo_fail, "error", error_code_to_str(ret_load));
+        }
     }
+
+    (void)ParsonHelper::jsonObjectSetUint32(jo_report, "requested", (uint32_t)cnt_providers);
+    (void)ParsonHelper::jsonObjectSetUint32(jo_report, "loaded", (uint32_t)cnt_loaded);
 
     return RET_OK;
 }   //  setup_cm_providers
@@ -231,7 +264,7 @@ int uapki_init (JSON_Object* joParams, JSON_Object* joResult)
     }
 
     //  Setup subsystems
-    DO(setup_cm_providers(json_object_get_object(jo_refparams, "cmProviders")));
+    DO(setup_cm_providers(json_object_get_object(jo_refparams, "cmProviders"), joResult));
 
     DO(setup_cert_cache(json_object_get_object(jo_refparams, "certCache")));
 
