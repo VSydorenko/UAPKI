@@ -31,6 +31,7 @@
 #include "cm-providers.h"
 #include "cm-storage-proxy.h"
 #include "parson-helper.h"
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -45,11 +46,15 @@ using namespace std;
 
 
 typedef struct CM_PROVIDER_ST {
-    const string    id;
-    CmStorageProxy* storage;
+    const string                    id;
+    std::unique_ptr<CmStorageProxy> storage;
     CM_PROVIDER_ST (const string& iId, CmStorageProxy* const iCmSession)
         : id(iId), storage(iCmSession) {
     }
+    //  vector<> requires move-construction on reallocation. Copying is implicitly
+    //  deleted by unique_ptr, which is exactly what we want: a provider proxy has
+    //  a single owner.
+    CM_PROVIDER_ST (CM_PROVIDER_ST&&) = default;
 } CM_PROVIDER;
 
 
@@ -185,8 +190,7 @@ cleanup:
 void CmProviders::deinit (void)
 {
     for (auto& it : lib_cmproviders.providers) {
-        delete it.storage;
-        it.storage = nullptr;
+        it.storage.reset();
     }
     lib_cmproviders.providers.clear();
 }
@@ -201,7 +205,7 @@ int CmProviders::getInfo (const size_t index, JSON_Object* joResult)
     if (index >= CmProviders::count()) return RET_INVALID_PARAM;
 
     int ret = RET_OK;
-    CmStorageProxy* storage = lib_cmproviders.providers[index].storage;
+    CmStorageProxy* storage = lib_cmproviders.providers[index].storage.get();
     string s_provinfo;
     ParsonHelper json;
 
@@ -244,7 +248,7 @@ int CmProviders::listStorages (const string& providerId, JSON_Object* joResult)
     if (!cm_provider) return RET_UAPKI_UNKNOWN_PROVIDER;
 
     string s_storlist;
-    CmStorageProxy* storage = cm_provider->storage;
+    CmStorageProxy* storage = cm_provider->storage.get();
     int ret = storage->storageList(s_storlist);
     if (ret != RET_OK) return ret;
 
@@ -274,7 +278,7 @@ int CmProviders::storageInfo (const string& providerId, const string& storageId,
     if (!cm_provider) return RET_UAPKI_UNKNOWN_PROVIDER;
 
     string s_storinfo;
-    CmStorageProxy* storage = cm_provider->storage;
+    CmStorageProxy* storage = cm_provider->storage.get();
     int ret = storage->storageInfo(storageId, s_storinfo);
     if (ret != RET_OK) return ret;
 
@@ -311,7 +315,7 @@ int CmProviders::storageOpen (const string& providerId, const string& storageId,
         json.serialize(s_openparams);
     }
 
-    CmStorageProxy* storage = cm_provider->storage;
+    CmStorageProxy* storage = cm_provider->storage.get();
     int ret = storage->storageOpen(storageId, mode, s_openparams);
     if (ret != RET_OK) return ret;
 
