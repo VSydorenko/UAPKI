@@ -44,17 +44,9 @@ DEBUG_OUTPUT_FUNC
 
 
 static CmCryptoki* cm_cryptoki = nullptr;
-//  See the comment in cm-pkcs12/src/main-cm-pkcs12.cpp: process-wide provider
-//  instance shared by several independent consumers.
-static size_t cm_cryptoki_refcnt = 0;
-//  Configuration text of the first successful initialization. A repeated
-//  provider_init() is idempotent only for the SAME configuration; a different
-//  one is a different request and is rejected without changing the state.
-static std::string cm_cryptoki_initparams;
-
-static std::string params_text (CM_JSON_PCHAR providerParams)
+static std::string params_text (const CM_UTF8_CHAR* providerParams)
 {
-    return providerParams ? std::string((const char*)providerParams) : std::string();
+    return providerParams ? std::string(reinterpret_cast<const char*>(providerParams)) : std::string();
 }
 
 
@@ -93,14 +85,13 @@ CM_EXPORT CM_ERROR provider_init (
                 cm_cryptoki = nullptr;
             }
             else {
-                cm_cryptoki_refcnt = 1;
-                cm_cryptoki_initparams = params_text(providerParams);
+                cm_cryptoki->setInitParams(params_text(providerParams));
             }
         }
     }
-    else if (params_text(providerParams) == cm_cryptoki_initparams) {
+    else if (cm_cryptoki->isSameInitParams(params_text(providerParams))) {
         //  Idempotent for the SAME configuration: the post-condition already holds.
-        cm_cryptoki_refcnt++;
+        cm_cryptoki->addRef();
         cm_err = RET_OK;
     }
     else {
@@ -116,11 +107,9 @@ CM_EXPORT CM_ERROR provider_deinit (void)
     DEBUG_OUTPUT("provider_deinit()");
     if (!cm_cryptoki) return RET_CM_NOT_INITIALIZED;
 
-    if (cm_cryptoki_refcnt > 0) cm_cryptoki_refcnt--;
-    if (cm_cryptoki_refcnt == 0) {
+    if (cm_cryptoki->release() == 0) {
         delete cm_cryptoki;
         cm_cryptoki = nullptr;
-        cm_cryptoki_initparams.clear();
     }
     return RET_OK;
 }
