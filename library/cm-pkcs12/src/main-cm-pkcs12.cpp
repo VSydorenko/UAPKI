@@ -66,20 +66,9 @@ static const char* JSON_PROVIDER_INFO = "{"
 
 
 static CmPkcs12* cm_pkcs12 = nullptr;
-//  Reference counter for the process-wide provider instance. The provider DLL is
-//  loaded once per process but may be initialized by SEVERAL independent consumers
-//  (e.g. two modules that statically link UAPKI). Without counting, the second
-//  provider_init() used to fail with RET_CM_ALREADY_INITIALIZED and the consumer
-//  ended up with no provider registered at all.
-static size_t cm_pkcs12_refcnt = 0;
-//  Configuration text of the first successful initialization. A repeated
-//  provider_init() is idempotent only for the SAME configuration; a different
-//  one is a different request and is rejected without changing the state.
-static std::string cm_pkcs12_initparams;
-
-static std::string params_text (CM_JSON_PCHAR providerParams)
+static std::string params_text (const CM_UTF8_CHAR* providerParams)
 {
-    return providerParams ? std::string((const char*)providerParams) : std::string();
+    return providerParams ? std::string(reinterpret_cast<const char*>(providerParams)) : std::string();
 }
 
 
@@ -114,14 +103,13 @@ CM_EXPORT CM_ERROR provider_init (
                 cm_pkcs12 = nullptr;
             }
             else {
-                cm_pkcs12_refcnt = 1;
-                cm_pkcs12_initparams = params_text(providerParams);
+                cm_pkcs12->setInitParams(params_text(providerParams));
             }
         }
     }
-    else if (params_text(providerParams) == cm_pkcs12_initparams) {
+    else if (cm_pkcs12->isSameInitParams(params_text(providerParams))) {
         //  Idempotent for the SAME configuration: the post-condition already holds.
-        cm_pkcs12_refcnt++;
+        cm_pkcs12->addRef();
         cm_err = RET_OK;
     }
     else {
@@ -137,11 +125,9 @@ CM_EXPORT CM_ERROR provider_deinit (void)
     DEBUG_OUTPUT("provider_deinit()");
     if (!cm_pkcs12) return RET_CM_NOT_INITIALIZED;
 
-    if (cm_pkcs12_refcnt > 0) cm_pkcs12_refcnt--;
-    if (cm_pkcs12_refcnt == 0) {
+    if (cm_pkcs12->release() == 0) {
         delete cm_pkcs12;
         cm_pkcs12 = nullptr;
-        cm_pkcs12_initparams.clear();
     }
     return RET_OK;
 }
